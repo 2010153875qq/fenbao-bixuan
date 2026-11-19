@@ -3,79 +3,206 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <meta name="theme-color" content="#0b3d91" />
+  <meta name="theme-color" content="#0e2a4a" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="分包比选" />
+  <meta name="description" content="分包比选会审工作台。展示会审名单并下载已备文件，不上传源 PDF。" />
   <link rel="manifest" href="./manifest.webmanifest" />
   <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png" />
   <link rel="stylesheet" href="./css/style.css" />
-  <title>分包比选工作台 · 双峰北地基基础</title>
+  <title>项目首页 · 分包比选工作台</title>
 </head>
 <body>
-  <div class="wrap">
-    <header class="hero">
-      <h1 id="project-title">分包比选工作台</h1>
-      <div class="meta" id="project-meta"></div>
-      <div class="badge-row">
-        <span class="badge">仅会审名单 · 无证件信息</span>
-        <span class="badge">可添加到主屏幕</span>
-        <span class="badge">离线可看本页</span>
-      </div>
-    </header>
+  <a class="skip" href="#main">跳到主要内容</a>
+  <div class="app">
+    <aside class="sidebar">
+      <p class="side-brand" id="sidebar-label">分包比选</p>
+      <nav class="side-nav" aria-labelledby="sidebar-label">
+        <a href="#home" data-nav="home">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg>
+          <span>项目首页</span>
+        </a>
+        <a href="#import" data-nav="import">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 4v9m0 0 3.5-3.5M12 13 8.5 9.5M4 14.5V19a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>资料导入</span>
+        </a>
+        <a href="#review" data-nav="review">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="4.5" width="12" height="15.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M9 4.5h6V7H9zM8.5 11.5h7M8.5 15h5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>名单核对</span>
+        </a>
+        <a href="#export" data-nav="export">
+          <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 4v10m0 0 3.5-3.5M12 14 8.5 10.5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <span>表格导出</span>
+        </a>
+      </nav>
+      <p class="side-note">源 PDF 不上传</p>
+    </aside>
 
-    <section class="card privacy">
-      <h2>隐私提醒</h2>
-      <p class="muted">本工作台<strong>不展示</strong>身份证号、社保证明明细或手机号，只列出分包商和会审需要的负责人姓名。</p>
-    </section>
+    <div class="main-col">
+      <header class="topbar">
+        <div class="brand-block">
+          <img src="./icons/icon-192.png" width="40" height="40" alt="" />
+          <div class="brand-text">
+            <h1>分包比选工作台</h1>
+            <p id="project-sub" class="project-sub"></p>
+          </div>
+        </div>
+      </header>
 
-    <section class="card">
-      <h2>会审汇总（已按投入计划核对）</h2>
-      <p class="muted">「是否同意」留空，由会审小组现场勾选。劳务现场负责人未单独署名的一律留空。</p>
-      <div class="table-wrap" style="margin-top:10px">
-        <table>
-          <thead>
-            <tr>
-              <th>序号</th>
-              <th>分包商</th>
-              <th>队伍负责人</th>
-              <th>专业项目经理</th>
-              <th>劳务现场负责人</th>
-              <th>计划 / 核对</th>
-            </tr>
-          </thead>
-          <tbody id="vendor-body"></tbody>
-        </table>
-      </div>
-      <div class="actions">
-        <a class="btn" href="./downloads/双峰北220kV_地基基础_会审意见_已填.docx" download>下载会审意见 Word</a>
-        <a class="btn secondary" href="./downloads/双峰北220kV_地基基础_会审意见_已填.pdf" download>下载 PDF 预览</a>
-        <a class="btn secondary" href="./downloads/核对.md" download>下载核对备忘</a>
-      </div>
-    </section>
+      <main id="main" tabindex="-1">
+        <noscript>
+          <section class="panel noscript-panel">
+            <h2>下载仍可使用</h2>
+            <p>当前浏览器停用了 JavaScript，页面切换和名单需要脚本才能显示。下面的文件不依赖脚本：</p>
+            <p><a href="./downloads/双峰北220kV_地基基础_会审意见_已填.docx" download>下载会审意见 Word</a></p>
+            <p><a href="./downloads/双峰北220kV_地基基础_会审意见_已填.pdf" download>下载 PDF 预览</a></p>
+            <p><a href="./downloads/核对.md" download>下载核对备忘</a></p>
+          </section>
+        </noscript>
 
-    <section class="card">
-      <h2>备选库</h2>
-      <div id="alt-box" class="muted"></div>
-    </section>
+        <div id="install-banner" class="install-banner" hidden>
+          <p id="install-copy">可在浏览器菜单中选择「安装应用」或「添加到主屏幕」。不添加也不影响使用。</p>
+          <div class="install-actions">
+            <button type="button" class="btn" id="install-action" hidden>安装</button>
+            <button type="button" class="btn secondary" id="install-dismiss">关闭</button>
+          </div>
+        </div>
 
-    <section class="card">
-      <h2>下次扔 PDF 进来</h2>
-      <p class="muted">把申请报告、商名录、各家资源投入计划拖到下方。本页只在浏览器里记住文件名，方便你核对是否带齐；扫描件识别与自动填表请发给小政。</p>
-      <div class="drop" id="drop" role="button" tabindex="0">点击或拖拽 PDF / Word 到这里</div>
-      <input id="file-input" type="file" accept=".pdf,.doc,.docx,application/pdf" multiple hidden />
-      <ul class="file-list" id="file-list"></ul>
-      <div class="actions">
-        <button class="btn secondary" id="parse-hint" type="button">如何自动生成下一份会审表？</button>
-      </div>
-    </section>
+        <section class="view" id="view-home" data-view="home">
+          <div class="view-head">
+            <h2 id="home-title" tabindex="-1">项目首页</h2>
+            <p>查看本批次概况，再进入名单或下载已经备好的会审文件。选择本地文件时只记录文件名，源 PDF 不会上传。</p>
+          </div>
+          <div class="home-grid">
+            <section class="panel" aria-labelledby="overview-title">
+              <h3 id="overview-title">项目概况</h3>
+              <dl class="meta-grid" id="overview-grid"></dl>
+              <h3 class="subhead" id="scope-title">工作范围</h3>
+              <p id="scope-text" class="scope"></p>
+            </section>
+            <section class="panel panel-side" aria-labelledby="batch-title">
+              <h3 id="batch-title">本批次</h3>
+              <dl class="stat-list" id="stat-list"></dl>
+              <p id="attention-line" class="note"></p>
+              <div class="actions">
+                <a class="btn" href="#review">进入名单核对</a>
+                <a class="btn secondary" href="#export">打开表格导出</a>
+                <a class="btn secondary" href="#import">查看资料导入</a>
+              </div>
+            </section>
+          </div>
+          <section class="panel privacy" aria-labelledby="privacy-title">
+            <h3 id="privacy-title">隐私说明</h3>
+            <p id="privacy-text"></p>
+          </section>
+        </section>
 
-    <div class="install-tip" id="install-tip" hidden>
-      <strong>添加到平板 / 手机主屏幕</strong>
-      <div class="ios">用 Safari 打开本页 → 点底部分享 →「添加到主屏幕」。</div>
-      <div class="android">用 Chrome 打开本页 → 菜单 →「安装应用」或「添加到主屏幕」。</div>
+        <section class="view" id="view-import" data-view="import" hidden>
+          <div class="view-head">
+            <h2 id="import-title" tabindex="-1">资料导入</h2>
+            <p id="import-note">选择申请报告、商名录或投入计划后，这里只列出文件名和大小，方便看是否带齐。不会读取文件内容，不会上传，也不会生成或修改会审表。刷新或关闭页面后清单会清空。</p>
+          </div>
+          <div class="panel">
+            <button type="button" class="drop" id="drop">
+              <span class="drop-title">选择或拖入 PDF / Word</span>
+              <span class="drop-hint">可以一次选多个。清单里只有文件名。</span>
+            </button>
+            <div class="actions">
+              <button type="button" class="btn" id="pick-files">选择文件</button>
+            </div>
+            <input id="file-input" class="file-input-hidden" type="file" accept=".pdf,.doc,.docx,application/pdf" multiple tabindex="-1" aria-label="选择 PDF 或 Word 文件，仅记录文件名" />
+            <p id="file-status" class="visually-hidden" aria-live="polite"></p>
+            <p id="file-empty" class="empty">还没有选择文件。清单为空时，不会出现识别结果，也不会生成会审表。</p>
+            <ul class="file-list" id="file-list" aria-label="已选文件名" hidden></ul>
+          </div>
+        </section>
+
+        <section class="view" id="view-review" data-view="review" hidden>
+          <div class="view-head">
+            <h2 id="review-title" tabindex="-1">名单核对</h2>
+            <p>按已收到的投入计划列出选用库。「是否同意」不在本页填写，仍留在会审表里。劳务现场负责人未单独署名的一律留空。</p>
+          </div>
+          <section class="panel" aria-labelledby="vendor-title">
+            <h3 id="vendor-title">选用库</h3>
+            <div class="table-wrap">
+              <table class="vendor-table">
+                <caption class="visually-hidden">选用库会审名单</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">序号</th>
+                    <th scope="col">分包商</th>
+                    <th scope="col">队伍负责人</th>
+                    <th scope="col">专业项目经理</th>
+                    <th scope="col">劳务现场负责人</th>
+                    <th scope="col">计划 / 核对</th>
+                  </tr>
+                </thead>
+                <tbody id="vendor-body"></tbody>
+              </table>
+            </div>
+            <div class="vendor-cards" id="vendor-cards"></div>
+          </section>
+          <section class="panel" aria-labelledby="alt-title">
+            <h3 id="alt-title">备选库</h3>
+            <div id="alt-box"></div>
+          </section>
+        </section>
+
+        <section class="view" id="view-export" data-view="export" hidden>
+          <div class="view-head">
+            <h2 id="export-title" tabindex="-1">表格导出</h2>
+            <p>下面三个文件是已经备好的原稿，文件名保持不变。本页不会根据导入清单重新生成 Word、PDF 或核对备忘。</p>
+          </div>
+          <ul class="download-list">
+            <li>
+              <div>
+                <h3>会审意见 Word</h3>
+                <p class="filename">双峰北220kV_地基基础_会审意见_已填.docx</p>
+                <p class="muted">已填会审意见原稿。</p>
+              </div>
+              <a class="btn" href="./downloads/双峰北220kV_地基基础_会审意见_已填.docx" download>下载会审意见 Word</a>
+            </li>
+            <li>
+              <div>
+                <h3>会审意见 PDF</h3>
+                <p class="filename">双峰北220kV_地基基础_会审意见_已填.pdf</p>
+                <p class="muted">同一份会审意见的 PDF 预览。</p>
+              </div>
+              <a class="btn secondary" href="./downloads/双峰北220kV_地基基础_会审意见_已填.pdf" download>下载 PDF 预览</a>
+            </li>
+            <li>
+              <div>
+                <h3>核对备忘</h3>
+                <p class="filename">核对.md</p>
+                <p class="muted">名单来源和对照说明。</p>
+              </div>
+              <a class="btn secondary" href="./downloads/核对.md" download>下载核对备忘</a>
+            </li>
+          </ul>
+        </section>
+      </main>
     </div>
+
+    <nav class="tabbar" aria-label="主导航">
+      <a href="#home" data-nav="home">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M4 10.5 12 4l8 6.5V20a1 1 0 0 1-1 1h-5v-6H10v6H5a1 1 0 0 1-1-1Z" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linejoin="round"/></svg>
+        <span>首页</span>
+      </a>
+      <a href="#import" data-nav="import">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 4v9m0 0 3.5-3.5M12 13 8.5 9.5M4 14.5V19a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4.5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>导入</span>
+      </a>
+      <a href="#review" data-nav="review">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="6" y="4.5" width="12" height="15.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.75"/><path d="M9 4.5h6V7H9zM8.5 11.5h7M8.5 15h5" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>核对</span>
+      </a>
+      <a href="#export" data-nav="export">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M12 4v10m0 0 3.5-3.5M12 14 8.5 10.5M5 19h14" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <span>导出</span>
+      </a>
+    </nav>
   </div>
   <script src="./js/data.js"></script>
   <script src="./js/app.js"></script>
