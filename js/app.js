@@ -95,6 +95,12 @@
     return source ? '<p class="source">来源 ' + esc(source) + '</p>' : '';
   }
 
+  function candidateLine(vendor, index) {
+    if (vendor.teamLead || !vendor.teamLeadCandidate) return '';
+    return '<p class="source">候选 ' + esc(vendor.teamLeadCandidate) + '（' + esc(vendor.teamLeadCandidateSource) + '）</p>' +
+      '<button type="button" class="btn secondary" data-adopt="' + index + '">填入候选</button>';
+  }
+
   function render() {
     const chip = document.getElementById('project-chip');
     chip.textContent = [project.projectCore || '未填写工程', reviewDateText()].filter(Boolean).join(' · ');
@@ -167,7 +173,7 @@
   function rowCard(vendor, index) {
     return '<article class="vcard" data-name="' + esc(vendor.name) + '">' +
       '<header><span class="vno">' + (index + 1) + '</span><h3>' + esc(vendor.name) + '</h3></header>' +
-      '<div class="field-block"><p>队伍负责人</p>' + fieldInput(vendor, index, 'teamLead', '队伍负责人') + sourceLine(vendor.teamLeadSource) + '</div>' +
+      '<div class="field-block"><p>队伍负责人</p>' + fieldInput(vendor, index, 'teamLead', '队伍负责人') + sourceLine(vendor.teamLeadSource) + candidateLine(vendor, index) + '</div>' +
       '<div class="field-block"><p>专业项目经理</p>' + fieldInput(vendor, index, 'pm', '专业项目经理') + sourceLine(vendor.pmSource) + '</div>' +
       '<div class="field-block"><p>劳务现场负责人</p>' + fieldInput(vendor, index, 'labor', '劳务现场负责人') + sourceLine(vendor.laborSource) + '</div>' +
       '<div class="tags">' + statusTags(vendor) + '<span class="tag">是否同意未勾选</span></div></article>';
@@ -176,7 +182,7 @@
   function rowTable(vendor, index) {
     return '<tr data-name="' + esc(vendor.name) + '"><td>' + (index + 1) + '</td>' +
       '<th scope="row">' + esc(vendor.name) + '</th>' +
-      '<td>' + fieldInput(vendor, index, 'teamLead', '队伍负责人') + sourceLine(vendor.teamLeadSource) + '</td>' +
+      '<td>' + fieldInput(vendor, index, 'teamLead', '队伍负责人') + sourceLine(vendor.teamLeadSource) + candidateLine(vendor, index) + '</td>' +
       '<td>' + fieldInput(vendor, index, 'pm', '专业项目经理') + sourceLine(vendor.pmSource) + '</td>' +
       '<td>' + fieldInput(vendor, index, 'labor', '劳务现场负责人') + sourceLine(vendor.laborSource) + '</td>' +
       '<td><div class="tags">' + statusTags(vendor) + '</div><p class="source">是否同意未勾选</p></td></tr>';
@@ -198,6 +204,17 @@
         if (input.dataset.field === 'teamLead' || input.dataset.field === 'pm') vendor.planFound = vendor.planFound || Boolean(input.value.trim());
       });
     });
+    rootNode.querySelectorAll('button[data-adopt]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const vendor = project.vendors[Number(button.dataset.adopt)];
+        if (!vendor || !vendor.teamLeadCandidate) return;
+        vendor.teamLead = vendor.teamLeadCandidate;
+        vendor.teamLeadSource = '手工填入候选：' + vendor.teamLeadCandidateSource;
+        vendor.teamLeadCandidate = '';
+        vendor.teamLeadCandidateSource = '';
+        render();
+      });
+    });
   }
 
   function classLabel(className) {
@@ -208,7 +225,7 @@
       license: '安全资信报备证',
       skip: '情况说明，不列入',
       privacy: '证件或社保，已跳过',
-      scan: '扫描件，未读出文字',
+      scan: '扫描件，待识别',
       unknown: '未识别类型'
     }[className] || className;
   }
@@ -224,7 +241,8 @@
     empty.hidden = true;
     list.innerHTML = imported.map((file, index) =>
       '<li><span class="file-name"><strong>' + esc(file.name) + '</strong> <span class="muted">(' + esc(file.sizeLabel) + ')</span>' +
-      '<span class="source">分类 ' + esc(classLabel(file.className)) + (file.note ? ' · ' + esc(file.note) : '') + '</span></span>' +
+      '<span class="source">分类 ' + esc(classLabel(file.className)) + (file.note ? ' · ' + esc(file.note) : '') + '</span>' +
+      ocrControls(file, index) + '</span>' +
       '<button type="button" class="btn secondary" data-i="' + index + '" aria-label="移除 ' + esc(file.name) + '">移除</button></li>'
     ).join('');
     list.querySelectorAll('button[data-i]').forEach((button) => {
@@ -233,6 +251,26 @@
         renderFiles();
       });
     });
+    list.querySelectorAll('button[data-ocr]').forEach((button) => {
+      button.addEventListener('click', () => recognizeFile(imported[Number(button.dataset.ocr)]));
+    });
+    list.querySelectorAll('button[data-cancel-ocr]').forEach((button) => {
+      button.addEventListener('click', () => {
+        if (window.FENBAO_OCR) window.FENBAO_OCR.cancel();
+        const file = imported[Number(button.dataset.cancelOcr)];
+        if (file && file.ocr) file.ocr = { status: 'cancelled', label: '已取消' };
+        renderFiles();
+      });
+    });
+  }
+
+  function ocrControls(file, index) {
+    if (file.className !== 'scan' && !(file.ocr && file.ocr.status)) return '';
+    const status = file.ocr && file.ocr.status;
+    const bits = [];
+    if (status === 'running') bits.push('<p class="source" role="status">' + esc(file.ocr.label || '正在识别') + '</p><button type="button" class="btn secondary" data-cancel-ocr="' + index + '">取消识别</button>');
+    else bits.push('<button type="button" class="btn secondary" data-ocr="' + index + '">识别扫描页</button>');
+    return bits.join('');
   }
 
   function formatSize(size) {
@@ -256,23 +294,151 @@
     });
   }
 
-  async function readPdf(buffer) {
+  function itemsToText(items) {
+    const sorted = items.slice().sort((a, b) => {
+      const ay = a.transform[5];
+      const by = b.transform[5];
+      if (Math.abs(ay - by) > 3) return by - ay;
+      return a.transform[4] - b.transform[4];
+    });
+    let out = '';
+    let last = null;
+    sorted.forEach((item) => {
+      const x = item.transform[4];
+      const y = item.transform[5];
+      if (last) {
+        if (Math.abs(y - last.y) > 4) out += '\n';
+        else if (x - last.right > 12) out += ' ';
+      }
+      out += item.str;
+      last = { y: y, right: x + (item.width || 0) };
+    });
+    return out;
+  }
+
+  async function openPdf(buffer) {
     await loadScript('./vendor/pdfjs/pdf.js');
     const pdfjs = window.pdfjsLib;
     pdfjs.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.js';
-    const task = pdfjs.getDocument({
+    return pdfjs.getDocument({
       data: buffer,
       cMapUrl: './vendor/pdfjs/cmaps/',
       cMapPacked: true
-    });
-    const pdf = await task.promise;
+    }).promise;
+  }
+
+  async function readPdf(buffer) {
+    const pdf = await openPdf(buffer.slice(0));
     const pages = [];
     for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
       const page = await pdf.getPage(pageNumber);
       const content = await page.getTextContent();
-      pages.push(content.items.map((item) => item.str).join(''));
+      const text = itemsToText(content.items);
+      const useful = /队伍负责人|选用库|申请报告|投入计划|工程名称|标包|外包商名录/;
+      const attachment = /社保证明|身份证|缴费明细/;
+      if (attachment.test(text) && !useful.test(text)) continue;
+      pages.push(text);
     }
-    return pages.join('\n');
+    return { text: pages.join('\n'), numPages: pdf.numPages, buffer: buffer };
+  }
+
+  function rotateCanvas(source, degrees) {
+    if (!degrees) return source;
+    const canvas = document.createElement('canvas');
+    const swap = degrees % 180 !== 0;
+    canvas.width = swap ? source.height : source.width;
+    canvas.height = swap ? source.width : source.height;
+    const ctx = canvas.getContext('2d');
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(degrees * Math.PI / 180);
+    ctx.drawImage(source, -source.width / 2, -source.height / 2);
+    return canvas;
+  }
+
+  function ocrScore(text) {
+    return (String(text).match(/公司|负责人|计划|工程|班组/g) || []).length;
+  }
+
+  function discardSensitivePage(text) {
+    if (/投入计划|队伍负责人|外包商单位名称/.test(text)) return false;
+    return /社保证明|参保信息|缴费基数|社会保障/.test(text);
+  }
+
+  async function renderPdfPage(buffer, pageNumber, rotation) {
+    const pdf = await openPdf(buffer.slice(0));
+    const page = await pdf.getPage(pageNumber);
+    const base = page.getViewport({ scale: 1, rotation: rotation || 0 });
+    const scale = Math.min(2.2, 1800 / base.width);
+    const viewport = page.getViewport({ scale: scale, rotation: rotation || 0 });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    await page.render({ canvasContext: canvas.getContext('2d', { willReadFrequently: true }), viewport: viewport }).promise;
+    return canvas;
+  }
+
+  function defaultOcrPages(numPages) {
+    const count = Math.min(window.FENBAO_OCR ? window.FENBAO_OCR.MAX_PAGES : 3, numPages > 4 ? 1 : Math.min(2, numPages));
+    return Array.from({ length: count }, (_, index) => index + 1);
+  }
+
+  async function recognizeFile(file) {
+    if (!file || !file.buffer) return;
+    const pages = (file.ocr && file.ocr.pages) || defaultOcrPages(file.numPages || 1);
+    file.ocr = { status: 'running', pages: pages, label: '正在准备中文识别' };
+    renderFiles();
+    const status = document.getElementById('ocr-status');
+    try {
+      await loadScript('./js/ocr.js');
+      let combined = '';
+      let chosen = '';
+      for (let index = 0; index < pages.length; index += 1) {
+        const pageNumber = pages[index];
+        file.ocr.label = '正在识别第 ' + pageNumber + ' 页（' + (index + 1) + '/' + pages.length + '）';
+        if (status) status.textContent = file.name + '：' + file.ocr.label;
+        renderFiles();
+        let bestText = '';
+        let bestScore = -1;
+        for (const rotation of [0, 270, 90]) {
+          file.ocr.label = '正在识别第 ' + pageNumber + ' 页';
+          if (status) status.textContent = file.name + '：' + file.ocr.label;
+          const canvas = await renderPdfPage(file.buffer, pageNumber, rotation);
+          const text = await window.FENBAO_OCR.recognizeCanvas(canvas, (message) => {
+            if (!message || message.status !== 'recognizing text') return;
+            const pct = Math.round((message.progress || 0) * 100);
+            file.ocr.label = '正在识别第 ' + pageNumber + ' 页 ' + pct + '%';
+            if (status) status.textContent = file.name + '：' + file.ocr.label;
+          });
+          canvas.width = 0;
+          canvas.height = 0;
+          const normalized = extract.normalize(text).replace(/([\u4e00-\u9fa5])\s+(?=[\u4e00-\u9fa5])/g, '$1');
+          const score = ocrScore(normalized);
+          if (score > bestScore) {
+            bestScore = score;
+            bestText = normalized;
+          }
+          if (score >= 3 && /队伍负责人|项目负责人/.test(normalized)) break;
+        }
+        if (!discardSensitivePage(bestText)) combined += '\n' + bestText;
+        chosen = bestText;
+      }
+      file.text = extract.redact(extract.normalize((file.text || '') + '\n' + combined));
+      file.className = extract.classify(file.name, file.text);
+      file.note = '扫描文字已抽出';
+      file.ocr = { status: 'done', label: '扫描文字已抽出' };
+      if (status) status.textContent = file.name + '：扫描文字已抽出';
+    } catch (error) {
+      if (error && error.message === 'cancelled') {
+        file.ocr = { status: 'cancelled', label: '已取消' };
+        if (status) status.textContent = '已取消识别';
+      } else {
+        file.ocr = { status: 'error', label: '识别失败' };
+        file.note = '识别失败，姓名留空';
+        file.ocrError = String(error && error.message || error);
+        if (status) status.textContent = '识别失败，没有填入姓名';
+      }
+    }
+    renderFiles();
   }
 
   async function readDocx(buffer) {
@@ -287,20 +453,26 @@
     const lower = name.toLowerCase();
     let text = '';
     let note = '';
+    let numPages = 0;
+    let buffer = null;
     try {
       if (lower.endsWith('.txt') || lower.endsWith('.md')) text = await file.text();
       else if (lower.endsWith('.docx')) text = await readDocx(await file.arrayBuffer());
-      else if (lower.endsWith('.pdf')) text = await readPdf(await file.arrayBuffer());
-      else note = '只读取 PDF、Word 和 txt';
+      else if (lower.endsWith('.pdf')) {
+        const result = await readPdf(await file.arrayBuffer());
+        text = result.text;
+        numPages = result.numPages;
+        buffer = result.buffer;
+      } else note = '只读取 PDF、Word 和 txt';
     } catch (error) {
       note = '未能读取正文';
       text = '';
     }
-    text = extract.redact(text);
+    text = extract.redact(extract.normalize ? extract.normalize(text) : text);
     let className = extract.classify(name, text);
     if (lower.endsWith('.pdf') && text.trim().length < 40 && className !== 'privacy') {
       className = 'scan';
-      note = '没有可用文字层';
+      note = '没有可用文字层，将只识别前 ' + Math.min(3, numPages > 4 ? 1 : Math.min(2, numPages || 1)) + ' 页';
     } else if (!note && text.trim()) note = '已读取正文';
     else if (!note) note = '没有读到正文';
     return {
@@ -308,14 +480,20 @@
       sizeLabel: formatSize(file.size || text.length),
       className: className,
       note: note,
-      text: className === 'privacy' ? '' : text
+      text: className === 'privacy' ? '' : text,
+      numPages: numPages,
+      buffer: className === 'privacy' ? null : buffer
     };
   }
 
   async function addFiles(fileList) {
     const files = Array.from(fileList || []);
-    for (const file of files) imported.push(await readImportedFile(file));
-    renderFiles();
+    for (const file of files) {
+      const record = await readImportedFile(file);
+      imported.push(record);
+      renderFiles();
+      if (record.className === 'scan' && record.buffer) await recognizeFile(record);
+    }
   }
 
   const drop = document.getElementById('drop');
@@ -335,8 +513,9 @@
     input.click();
   });
   input.addEventListener('change', () => {
-    addFiles(input.files);
+    const pending = addFiles(input.files);
     input.value = '';
+    return pending;
   });
 
   document.getElementById('load-fixture').addEventListener('click', async () => {

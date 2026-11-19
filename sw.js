@@ -1,4 +1,4 @@
-const CACHE = 'fenbao-bixuan-v4';
+const CACHE = 'fenbao-bixuan-v5';
 const ASSETS = [
   './',
   './index.html',
@@ -7,6 +7,7 @@ const ASSETS = [
   './js/data.js',
   './js/extract.js',
   './js/docx.js',
+  './js/ocr.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -16,7 +17,12 @@ const ASSETS = [
   './templates/会审意见表_模板.docx',
   './vendor/jszip.min.js',
   './vendor/pdfjs/pdf.js',
-  './vendor/pdfjs/pdf.worker.js'
+  './vendor/pdfjs/pdf.worker.js',
+  './vendor/tesseract/tesseract.min.js',
+  './vendor/tesseract/worker.min.js',
+  './vendor/tesseract/tesseract-core-simd-lstm.wasm.js',
+  './vendor/tesseract/chi_sim.traineddata.gz',
+  './vendor/tesseract/eng.traineddata.gz'
 ];
 
 self.addEventListener('install', (event) => {

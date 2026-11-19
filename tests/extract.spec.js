@@ -38,12 +38,14 @@ test('fixture text builds the 双峰北 roster without 佳园', () => {
     ['湖南鑫军送变电有限责任公司', '罗曙光', '罗雄', ''],
     ['湖南友维电力建设有限公司', '陈钰', '向颖', ''],
     ['湖南鼎淳建设有限公司', '陈红刚', '刘哲', ''],
-    ['湖南百事恒兴建设工程有限公司', '杨建军', '游聚云', ''],
+    ['湖南百事恒兴建设工程有限公司', '', '游聚云', ''],
     ['湖南长坤建设有限公司', '刘应端', '许书强', ''],
     ['湖南科创电力工程技术有限公司', '张栋', '陈少龙', ''],
     ['湖南省湘乡市电力建设有限公司', '陈青生', '周波', '']
   ]));
-  assert.equal(project.vendors[4].teamLeadSource, '安全资信报备证法定代表人');
+  assert.equal(project.vendors[4].teamLead, '');
+  assert.equal(project.vendors[4].teamLeadCandidate, '杨建军');
+  assert.match(project.vendors[4].teamLeadCandidateSource, /未自动填入/);
   assert.equal(project.vendors[2].labor, '');
   assert.equal(project.vendors.some((item) => item.name.includes('佳园')), false);
   assert.equal(project.ignored.some((item) => item.name.includes('佳园')), true);
@@ -55,6 +57,50 @@ test('identity numbers and phones are stripped before classification text is kep
   assert.equal(cleaned.includes('430102199001011234'), false);
   assert.equal(cleaned.includes('13800138000'), false);
   assert.equal(cleaned.includes('曹敏'), true);
+});
+
+test('table-style plan keeps the first two names and ignores later columns', () => {
+  const project = api.buildProject([
+    {
+      name: '申请报告.txt',
+      className: 'application',
+      text: '单位、工程名称及外包专业：变电施工一分公司星火站110kV线路工程土建施工地基基础专业外包；土方开挖及回填。计划分2个标包，资源投入不少于3个班组。工期计划安排：2026年3月-2026年8月'
+    },
+    {
+      name: '名录.txt',
+      className: 'roster',
+      text: '编号：线路专业（2026）框架01 “选用库”2家：星火乙有限公司、星火甲有限公司；“备选库”1家：星火丙有限公司。'
+    },
+    {
+      name: '乙_投入计划.txt',
+      className: 'plan',
+      text: '队伍负责人 项目负责人：\n填写班组履历：星火乙有限公司 乙一 乙二 丙三 丁四'
+    },
+    {
+      name: '甲_报备证.txt',
+      className: 'license',
+      text: '星火甲有限公司\n安全资信报备证\n法定代表人：甲法'
+    },
+    {
+      name: '丙_情况说明.txt',
+      className: 'skip',
+      text: '星火丙有限公司\n情况说明\n不参与。'
+    }
+  ]);
+  const summary = JSON.parse(JSON.stringify({
+    core: project.projectCore,
+    period: project.period,
+    vendors: project.vendors.map((item) => [item.name, item.teamLead, item.pm, item.labor, item.teamLeadCandidate || '']),
+    ignored: project.ignored.map((item) => item.name)
+  }));
+  assert.equal(summary.core.includes('星火站'), true);
+  assert.equal(summary.core.includes('双峰北'), false);
+  assert.equal(summary.period, '2026年3月至2026年8月');
+  assert.deepEqual(summary.vendors, [
+    ['星火乙有限公司', '乙一', '乙二', '', ''],
+    ['星火甲有限公司', '', '', '', '甲法']
+  ]);
+  assert.deepEqual(summary.ignored, ['星火丙有限公司']);
 });
 
 test('a roster-only station does not invent names', () => {
@@ -77,16 +123,9 @@ test('a roster-only station does not invent names', () => {
   ]);
   assert.equal(project.projectCore, '测试站110kV线路工程');
   assert.equal(project.vendors.length, 2);
-  assert.equal(JSON.stringify(project.vendors[0]), JSON.stringify({
-    name: '测试甲有限公司',
-    teamLead: '甲一',
-    teamLeadSource: '投入计划',
-    pm: '甲二',
-    pmSource: '投入计划',
-    labor: '',
-    laborSource: '',
-    planFound: true
-  }));
+  assert.equal(project.vendors[0].teamLead, '甲一');
+  assert.equal(project.vendors[0].pm, '甲二');
+  assert.equal(project.vendors[0].teamLeadCandidate || '', '');
   assert.equal(project.vendors[1].teamLead, '');
   assert.equal(project.vendors[1].pm, '');
   assert.equal(project.vendors[1].planFound, false);

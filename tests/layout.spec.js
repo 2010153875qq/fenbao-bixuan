@@ -59,10 +59,11 @@ test('published files, manifest, and service worker stay accurate', async ({ req
   expect(manifest.description).toMatch(/源 PDF 未上传/);
 
   const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
-  expect(sw).toContain("const CACHE = 'fenbao-bixuan-v4'");
+  expect(sw).toContain("const CACHE = 'fenbao-bixuan-v5'");
   expect(sw).toContain('./downloads/核对.md');
   expect(sw).toContain('./templates/会审意见表_模板.docx');
-  expect(sw).not.toContain('fenbao-bixuan-v3');
+  expect(sw).toContain('chi_sim.traineddata.gz');
+  expect(sw).not.toContain('fenbao-bixuan-v4');
 
   for (const item of DOWNLOADS) {
     const rel = item.href.replace(/^\.\//, '');
@@ -170,7 +171,7 @@ test('file list records names only and can remove them', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/index.html#import');
   await expect(page.getByText('还没有资料')).toBeVisible();
-  await expect(page.getByText('不会上传')).toBeVisible();
+  await expect(page.getByText('不会上传').first()).toBeVisible();
 
   await page.locator('#file-input').setInputFiles([
     { name: '申请报告.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 sample') },
@@ -206,7 +207,8 @@ test('file list records names only and can remove them', async ({ page }) => {
   await page.getByRole('button', { name: '用这些资料填写名单' }).click();
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('名单核对');
   const card = page.locator('.vcard', { hasText: '湖南百事恒兴建设工程有限公司' });
-  await expect(card.locator('[data-field="teamLead"]')).toHaveValue('杨建军');
+  await expect(card.locator('[data-field="teamLead"]')).toHaveValue('');
+  await expect(card).toContainText('候选 杨建军');
   await expect(card.locator('[data-field="pm"]')).toHaveValue('游聚云');
   await expect(card.locator('[data-field="labor"]')).toHaveValue('');
   await expect(page.locator('.vcard', { hasText: '佳园' })).toHaveCount(0);
