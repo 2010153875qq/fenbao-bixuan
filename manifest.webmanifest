@@ -1,0 +1,16 @@
+{
+  "name": "分包比选工作台",
+  "short_name": "分包比选",
+  "description": "双峰北地基基础专业外包队伍投入计划会审工作台（仅本机/内网使用）",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0b3d91",
+  "theme_color": "#0b3d91",
+  "lang": "zh-CN",
+  "icons": [
+    { "src": "./icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "./icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
