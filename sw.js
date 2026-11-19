@@ -1,4 +1,4 @@
-const CACHE = 'fenbao-bixuan-v2';
+const CACHE = 'fenbao-bixuan-v3';
 const ASSETS = [
   './',
   './index.html',
