@@ -1,0 +1,16 @@
+{
+  "name": "fenbao-bixuan",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/extract.spec.js && playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.1"
+  },
+  "dependencies": {
+    "jszip": "^3.10.1",
+    "pdfjs-dist": "^3.11.174",
+    "tesseract.js": "^5.1.1"
+  }
+}

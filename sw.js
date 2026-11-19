@@ -1,16 +1,28 @@
-const CACHE = 'fenbao-bixuan-v2';
+const CACHE = 'fenbao-bixuan-v5';
 const ASSETS = [
   './',
   './index.html',
   './css/style.css',
   './js/app.js',
   './js/data.js',
+  './js/extract.js',
+  './js/docx.js',
+  './js/ocr.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/apple-touch-icon.png',
   './downloads/核对.md',
-  './downloads/双峰北220kV_地基基础_会审意见_已填.pdf'
+  './downloads/双峰北220kV_地基基础_会审意见_已填.docx',
+  './templates/会审意见表_模板.docx',
+  './vendor/jszip.min.js',
+  './vendor/pdfjs/pdf.js',
+  './vendor/pdfjs/pdf.worker.js',
+  './vendor/tesseract/tesseract.min.js',
+  './vendor/tesseract/worker.min.js',
+  './vendor/tesseract/tesseract-core-simd-lstm.wasm.js',
+  './vendor/tesseract/chi_sim.traineddata.gz',
+  './vendor/tesseract/eng.traineddata.gz'
 ];
 
 self.addEventListener('install', (event) => {
@@ -37,14 +49,16 @@ self.addEventListener('fetch', (event) => {
     if (cached) return cached;
     try {
       const res = await fetch(req);
-      if (res.ok && (url.pathname.endsWith('.html') || url.pathname.endsWith('.css') || url.pathname.endsWith('.js') || url.pathname.endsWith('.png') || url.pathname.endsWith('.webmanifest') || url.pathname.endsWith('.md'))) {
+      const path = url.pathname;
+      const cacheable = res.ok && (path.endsWith('.html') || path.endsWith('.css') || path.endsWith('.js') || path.endsWith('.png') || path.endsWith('.webmanifest') || path.endsWith('.md') || path.endsWith('.txt') || path.endsWith('.docx'));
+      if (cacheable) {
         const copy = res.clone();
-        caches.open(CACHE).then((c) => c.put(req, copy));
+        caches.open(CACHE).then((cache) => cache.put(req, copy));
       }
       return res;
-    } catch (e) {
+    } catch (error) {
       if (cached) return cached;
-      throw e;
+      throw error;
     }
   })());
 });
