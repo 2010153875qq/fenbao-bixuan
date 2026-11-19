@@ -23,10 +23,6 @@ const DOWNLOADS = [
     name: '下载会审意见 Word'
   },
   {
-    href: './downloads/双峰北220kV_地基基础_会审意见_已填.pdf',
-    name: '下载 PDF'
-  },
-  {
     href: './downloads/核对.md',
     name: '下载核对备忘'
   }
@@ -53,6 +49,7 @@ test('published files, manifest, and service worker stay accurate', async ({ req
   expect(data).toContain('湖南佳园建设工程有限公司');
   expect(data).toContain('曹敏');
   expect(data).toContain('游聚云');
+  expect(data).toContain('杨建军');
 
   const manifest = await (await request.get('/manifest.webmanifest')).json();
   expect(manifest.name).toBe('分包比选工作台');
@@ -62,10 +59,10 @@ test('published files, manifest, and service worker stay accurate', async ({ req
   expect(manifest.description).toMatch(/源 PDF 未上传/);
 
   const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
-  expect(sw).toContain("const CACHE = 'fenbao-bixuan-v3'");
+  expect(sw).toContain("const CACHE = 'fenbao-bixuan-v4'");
   expect(sw).toContain('./downloads/核对.md');
-  expect(sw).toContain('./downloads/双峰北220kV_地基基础_会审意见_已填.pdf');
-  expect(sw).not.toContain('fenbao-bixuan-v2');
+  expect(sw).toContain('./templates/会审意见表_模板.docx');
+  expect(sw).not.toContain('fenbao-bixuan-v3');
 
   for (const item of DOWNLOADS) {
     const rel = item.href.replace(/^\.\//, '');
@@ -88,8 +85,8 @@ test('desktop sidebar navigates four views and keeps download links', async ({ p
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('项目首页');
   await expect(page.locator('.brand-name')).toHaveText('分包比选工作台');
-  await expect(page.locator('#project-chip')).toContainText('地基基础专业（2026）框架09');
-  await expect(page.locator('#project-chip')).toContainText('2026-11-10');
+  await expect(page.locator('#project-chip')).toContainText('双峰北220kV变电站工程土建施工地基基础');
+  await expect(page.locator('#project-chip')).toContainText('2026年11月10日');
   await expect(page.getByText('源 PDF 未上传').first()).toBeVisible();
   await expect(page.locator('.sidebar')).toBeVisible();
   await expect(page.locator('.tabbar')).toBeHidden();
@@ -107,11 +104,15 @@ test('desktop sidebar navigates four views and keeps download links', async ({ p
   await expect(page.locator('.vendor-cards')).toBeHidden();
   await expect(page.getByRole('table', { name: '选用库会审名单' })).toBeVisible();
   await expect(page.getByRole('rowheader', { name: /湖南湘中输变电建设有限公司/ })).toBeVisible();
-  await expect(page.getByRole('cell', { name: '曹敏' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: '刘易楠' })).toBeVisible();
-  const table = page.locator('.table-wrap');
-  await expect(table.getByText('队伍负责人未列明')).toBeVisible();
-  await expect(table.getByText('杨建军仅为安全资信报备证法定代表人')).toBeVisible();
+  const xiangzhong = page.locator('tr[data-name="湖南湘中输变电建设有限公司"]');
+  await expect(xiangzhong.locator('[data-field="teamLead"]')).toHaveValue('曹敏');
+  await expect(xiangzhong.locator('[data-field="pm"]')).toHaveValue('刘易楠');
+  const baishi = page.locator('tr[data-name="湖南百事恒兴建设工程有限公司"]');
+  await expect(baishi.locator('[data-field="teamLead"]')).toHaveValue('杨建军');
+  await expect(baishi.locator('[data-field="pm"]')).toHaveValue('游聚云');
+  await expect(baishi).toContainText('安全资信报备证法定代表人');
+  await expect(page.locator('#vendor-body')).not.toContainText('佳园');
+  await expect(page.locator('#ignored-box')).toContainText('湖南佳园建设工程有限公司');
   const sideLink = sidebar.getByRole('link', { name: '项目首页' });
   expect((await sideLink.boundingBox()).height).toBeGreaterThanOrEqual(44);
 
@@ -122,7 +123,8 @@ test('desktop sidebar navigates four views and keeps download links', async ({ p
     await expect(link).toHaveAttribute('href', item.href);
     await expect(link).toHaveAttribute('download', '');
   }
-  await expect(page.getByText('不会在浏览器中生成或改写 Word / PDF')).toBeVisible();
+  await expect(page.getByRole('button', { name: '生成会审意见 Word' })).toBeVisible();
+  await expect(page.getByText('源申请报告和投入计划 PDF 未上传到本站')).toBeVisible();
   await page.goBack();
   await expect(page).toHaveURL(/#review$/);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('名单核对');
@@ -167,8 +169,8 @@ test('phone uses vendor cards, bottom nav, and does not cover content', async ({
 test('file list records names only and can remove them', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/index.html#import');
-  await expect(page.getByText('还没有选择文件')).toBeVisible();
-  await expect(page.getByText('清单内容：仅文件名和大小')).toBeVisible();
+  await expect(page.getByText('还没有资料')).toBeVisible();
+  await expect(page.getByText('不会上传')).toBeVisible();
 
   await page.locator('#file-input').setInputFiles([
     { name: '申请报告.pdf', mimeType: 'application/pdf', buffer: Buffer.from('%PDF-1.4 sample') },
@@ -177,7 +179,7 @@ test('file list records names only and can remove them', async ({ page }) => {
 
   await expect(page.getByText('申请报告.pdf')).toBeVisible();
   await expect(page.getByText('湘中队伍投入计划.docx')).toBeVisible();
-  await expect(page.getByText('未读取正文，未上传')).toBeVisible();
+  await expect(page.locator('.file-list')).toContainText(/未能读取正文|没有可用文字层/);
   await expect(page.getByText(/已识别|解析成功|上传成功|已登录/)).toHaveCount(0);
 
   const remove = page.getByRole('button', { name: '移除 申请报告.pdf' });
@@ -198,13 +200,16 @@ test('file list records names only and can remove them', async ({ page }) => {
   });
   await expect(page.getByText('拖入计划.pdf')).toBeVisible();
 
-  const hint = page.getByRole('button', { name: '如何自动生成下一份会审表？' });
-  await hint.click();
-  await expect(hint).toHaveAttribute('aria-expanded', 'true');
-  await expect(page.locator('#parse-note')).toContainText('不会识别 PDF 或 Word 正文');
-  await expect(page.locator('#parse-note')).toContainText('文件不会上传');
-  await hint.click();
-  await expect(page.locator('#parse-note')).toBeHidden();
+  await page.getByRole('button', { name: '载入文字示例' }).click();
+  await expect(page.getByText('双峰北_申请报告.txt')).toBeVisible();
+  await expect(page.locator('#file-list')).toContainText('情况说明，不列入');
+  await page.getByRole('button', { name: '用这些资料填写名单' }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('名单核对');
+  const card = page.locator('.vcard', { hasText: '湖南百事恒兴建设工程有限公司' });
+  await expect(card.locator('[data-field="teamLead"]')).toHaveValue('杨建军');
+  await expect(card.locator('[data-field="pm"]')).toHaveValue('游聚云');
+  await expect(card.locator('[data-field="labor"]')).toHaveValue('');
+  await expect(page.locator('.vcard', { hasText: '佳园' })).toHaveCount(0);
 });
 
 test('screenshots of phone, tablet, and desktop', async ({ page }) => {

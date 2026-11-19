@@ -5,10 +5,28 @@
     { id: 'review', label: '名单核对' },
     { id: 'export', label: '表格导出' }
   ];
+  const FIXTURES = [
+    '双峰北_申请报告.txt',
+    '双峰北_外包商名录.txt',
+    '双峰北_湘中_队伍投入计划.txt',
+    '双峰北_鑫军_队伍投入计划.txt',
+    '双峰北_友维_队伍投入计划.txt',
+    '双峰北_鼎淳_队伍投入计划.txt',
+    '双峰北_百事恒兴_资源投入计划.txt',
+    '双峰北_百事恒兴_安全资信报备证.txt',
+    '双峰北_长坤_队伍投入计划.txt',
+    '双峰北_科创_队伍投入计划.txt',
+    '双峰北_湘乡_队伍投入计划.txt',
+    '双峰北_佳园_情况说明.txt'
+  ];
 
-  const project = window.FENBAO_PROJECT;
-  const vendors = window.FENBAO_VENDORS || [];
-  const alt = window.FENBAO_ALT || [];
+  const extract = window.FENBAO_EXTRACT;
+  let project = clone(window.FENBAO_SAMPLE);
+  let imported = [];
+
+  function clone(value) {
+    return JSON.parse(JSON.stringify(value));
+  }
 
   function esc(value) {
     return String(value ?? '').replace(/[&<>"']/g, (ch) => ({
@@ -20,6 +38,19 @@
     }[ch]));
   }
 
+  function needsReview(vendor) {
+    return !vendor.planFound || !vendor.teamLead || !vendor.pm || vendor.teamLeadSource === '安全资信报备证法定代表人';
+  }
+
+  function reviewDateText() {
+    if (!project.reviewYear) return '';
+    return project.reviewYear + '年' + project.reviewMonth + '月' + project.reviewDay + '日';
+  }
+
+  function titleText() {
+    return (project.issuer || '') + (project.projectCore || '') + '专业分包商队伍投入计划会审意见';
+  }
+
   function viewFromHash() {
     const id = (location.hash || '').replace(/^#/, '');
     return VIEWS.some((view) => view.id === id) ? id : 'home';
@@ -29,17 +60,14 @@
     const id = viewFromHash();
     const raw = (location.hash || '').replace(/^#/, '');
     if (raw && raw !== id) history.replaceState(null, '', '#home');
-
     VIEWS.forEach((view) => {
       const panel = document.getElementById('view-' + view.id);
       if (panel) panel.hidden = view.id !== id;
     });
-
     document.querySelectorAll('a[data-nav]').forEach((link) => {
       if (link.dataset.nav === id) link.setAttribute('aria-current', 'page');
       else link.removeAttribute('aria-current');
     });
-
     const current = VIEWS.find((view) => view.id === id);
     const heading = document.getElementById('view-heading');
     heading.textContent = current.label;
@@ -59,147 +87,153 @@
   window.addEventListener('hashchange', () => applyView(false));
   window.addEventListener('popstate', () => applyView(false));
   applyView(false);
-
   document.getElementById('skip-link').addEventListener('click', () => {
     document.getElementById('main').focus();
   });
 
-  if (project) {
+  function sourceLine(source) {
+    return source ? '<p class="source">来源 ' + esc(source) + '</p>' : '';
+  }
+
+  function render() {
     const chip = document.getElementById('project-chip');
-    chip.textContent = project.frameNo + ' · ' + project.reviewDate;
+    chip.textContent = [project.projectCore || '未填写工程', reviewDateText()].filter(Boolean).join(' · ');
+
+    const pending = project.vendors.filter(needsReview).length;
+    const planned = project.vendors.filter((vendor) => vendor.planFound).length;
+    document.getElementById('stats').innerHTML = [
+      ['选用库', project.vendors.length, false],
+      ['已对上投入计划', planned, false],
+      ['待核对', pending, pending > 0],
+      ['不列入', project.ignored.length, false]
+    ].map(([label, value, warn]) =>
+      '<div class="stat' + (warn ? ' warn' : '') + '"><span>' + esc(label) + '</span><strong>' + esc(value) + '</strong></div>'
+    ).join('');
 
     const facts = [
-      ['工程', project.title],
-      ['单位', project.unit],
-      ['名录编号', project.frameNo],
-      ['会审日期', project.reviewDate],
-      ['工期', project.period],
-      ['标包', project.packages],
-      ['联系人', project.contact],
-      ['工作范围', project.scope]
+      ['会审标题', titleText()],
+      ['单位和工程', project.unitProject || '未读到申请报告'],
+      ['工作量及标包', project.scope || '未读到'],
+      ['工期', project.period || '未读到'],
+      ['会审日期', reviewDateText() || '未读到'],
+      ['名录编号', project.frameNo || '未读到']
     ];
     document.getElementById('project-facts').innerHTML = facts.map(([label, value]) =>
-      `<div><dt>${esc(label)}</dt><dd>${esc(value)}</dd></div>`
+      '<div><dt>' + esc(label) + '</dt><dd>' + esc(value) + '</dd></div>'
     ).join('');
 
-    const planCount = vendors.filter((item) => item.plan).length;
-    const matchCount = vendors.filter((item) => item.match === '一致').length;
-    const pendingCount = vendors.length - matchCount;
-    const stats = [
-      ['参选分包商', vendors.length, false],
-      ['已收投入计划', planCount, false],
-      ['名单一致', matchCount, false],
-      ['需留意', pendingCount, pendingCount > 0]
-    ];
-    document.getElementById('stats').innerHTML = stats.map(([label, value, warn]) =>
-      `<div class="stat${warn ? ' warn' : ''}"><span>${esc(label)}</span><strong>${esc(value)}</strong></div>`
-    ).join('');
-
-    const exceptions = vendors.filter((item) => item.match !== '一致');
     const watch = [];
-    if (!exceptions.length) {
-      watch.push(`<p>选用库 ${vendors.length} 家的队伍负责人、专业项目经理与投入计划一致。</p>`);
-    } else {
-      exceptions.forEach((item) => {
-        watch.push(
-          `<article class="watch-item"><strong>${esc(item.name)}</strong>` +
-          `<p>${esc(item.match)}。专业项目经理：${esc(item.pm || '—')}。</p></article>`
-        );
-      });
-    }
-    if (alt.length) {
-      alt.forEach((item) => {
-        watch.push(
-          `<article class="watch-item"><strong>${esc(item.name)}</strong>` +
-          `<p>备选库 · ${esc(item.status)}</p></article>`
-        );
-      });
-    } else {
-      watch.push('<p class="empty">备选库没有记录。</p>');
-    }
+    project.warnings.forEach((warning) => watch.push('<p>' + esc(warning) + '</p>'));
+    project.vendors.filter(needsReview).forEach((vendor) => {
+      const reason = !vendor.planFound ? '未读到投入计划' : (vendor.teamLeadSource === '安全资信报备证法定代表人' ? '队伍负责人取自法定代表人，请核对' : '姓名未读全');
+      watch.push('<article class="watch-item"><strong>' + esc(vendor.name) + '</strong><p>' + esc(reason) + '</p></article>');
+    });
+    project.ignored.forEach((item) => {
+      watch.push('<article class="watch-item"><strong>' + esc(item.name) + '</strong><p>' + esc(item.reason) + '</p></article>');
+    });
+    if (!watch.length) watch.push('<p>当前名单可以直接导出。是否同意仍留空。</p>');
     document.getElementById('watch-box').innerHTML = watch.join('');
+
+    document.getElementById('vendor-count').textContent = project.vendors.length ? project.vendors.length + ' 家' : '';
+    const cards = document.getElementById('vendor-cards');
+    const tbody = document.getElementById('vendor-body');
+    if (!project.vendors.length) {
+      const empty = '<p class="empty">选用库还没有分包商。请先在资料导入中读取申请报告、名录和投入计划。</p>';
+      cards.innerHTML = empty;
+      tbody.innerHTML = '<tr><td colspan="6">' + empty + '</td></tr>';
+    } else {
+      cards.innerHTML = project.vendors.map((vendor, index) => rowCard(vendor, index)).join('');
+      tbody.innerHTML = project.vendors.map((vendor, index) => rowTable(vendor, index)).join('');
+      bindInputs(cards);
+      bindInputs(tbody);
+    }
+
+    const ignored = document.getElementById('ignored-box');
+    if (!project.ignored.length) {
+      ignored.innerHTML = '<p class="empty">没有因情况说明被排除的单位。</p>';
+    } else {
+      ignored.innerHTML = project.ignored.map((item) =>
+        '<article class="alt-item"><h3>' + esc(item.name) + '</h3><p><span class="tag warn">' + esc(item.reason) + '</span></p></article>'
+      ).join('');
+    }
+    renderFiles();
   }
 
-  const cards = document.getElementById('vendor-cards');
-  const tbody = document.getElementById('vendor-body');
-  const count = document.getElementById('vendor-count');
-  if (count) count.textContent = vendors.length ? vendors.length + ' 家' : '';
-
-  function person(name) {
-    return name ? esc(name) : '<span class="dash">—</span>';
+  function fieldInput(vendor, index, field, label) {
+    return '<label class="field"><span class="sr-only">' + esc(vendor.name + ' ' + label) + '</span>' +
+      '<input data-index="' + index + '" data-field="' + field + '" value="' + esc(vendor[field] || '') + '" aria-label="' + esc(vendor.name + '的' + label) + '" /></label>';
   }
 
-  function teamLead(item) {
-    return item.teamLead ? esc(item.teamLead) : '<span class="tag warn">未列明</span>';
+  function rowCard(vendor, index) {
+    return '<article class="vcard" data-name="' + esc(vendor.name) + '">' +
+      '<header><span class="vno">' + (index + 1) + '</span><h3>' + esc(vendor.name) + '</h3></header>' +
+      '<div class="field-block"><p>队伍负责人</p>' + fieldInput(vendor, index, 'teamLead', '队伍负责人') + sourceLine(vendor.teamLeadSource) + '</div>' +
+      '<div class="field-block"><p>专业项目经理</p>' + fieldInput(vendor, index, 'pm', '专业项目经理') + sourceLine(vendor.pmSource) + '</div>' +
+      '<div class="field-block"><p>劳务现场负责人</p>' + fieldInput(vendor, index, 'labor', '劳务现场负责人') + sourceLine(vendor.laborSource) + '</div>' +
+      '<div class="tags">' + statusTags(vendor) + '<span class="tag">是否同意未勾选</span></div></article>';
   }
 
-  function planTag(item) {
-    return item.plan
-      ? '<span class="tag ok">已收计划</span>'
-      : '<span class="tag miss">未收到投入计划</span>';
+  function rowTable(vendor, index) {
+    return '<tr data-name="' + esc(vendor.name) + '"><td>' + (index + 1) + '</td>' +
+      '<th scope="row">' + esc(vendor.name) + '</th>' +
+      '<td>' + fieldInput(vendor, index, 'teamLead', '队伍负责人') + sourceLine(vendor.teamLeadSource) + '</td>' +
+      '<td>' + fieldInput(vendor, index, 'pm', '专业项目经理') + sourceLine(vendor.pmSource) + '</td>' +
+      '<td>' + fieldInput(vendor, index, 'labor', '劳务现场负责人') + sourceLine(vendor.laborSource) + '</td>' +
+      '<td><div class="tags">' + statusTags(vendor) + '</div><p class="source">是否同意未勾选</p></td></tr>';
   }
 
-  function matchTag(item) {
-    const kind = item.match === '一致' ? 'ok' : 'warn';
-    return `<span class="tag ${kind}">${esc(item.match)}</span>`;
+  function statusTags(vendor) {
+    if (!vendor.planFound) return '<span class="tag miss">未读到投入计划</span>';
+    if (needsReview(vendor)) return '<span class="tag warn">待核对</span>';
+    return '<span class="tag ok">已读取</span>';
   }
 
-  function noteHtml(item) {
-    return item.note ? `<p class="note">${esc(item.note)}</p>` : '';
+  function bindInputs(rootNode) {
+    rootNode.querySelectorAll('input[data-field]').forEach((input) => {
+      input.addEventListener('input', () => {
+        const vendor = project.vendors[Number(input.dataset.index)];
+        vendor[input.dataset.field] = input.value.trim();
+        const sourceKey = input.dataset.field + 'Source';
+        if (sourceKey in vendor) vendor[sourceKey] = input.value.trim() ? '手工修改' : '';
+        if (input.dataset.field === 'teamLead' || input.dataset.field === 'pm') vendor.planFound = vendor.planFound || Boolean(input.value.trim());
+      });
+    });
   }
 
-  if (!vendors.length) {
-    const empty = '<p class="empty">选用库还没有分包商。</p>';
-    cards.innerHTML = empty;
-    tbody.innerHTML = `<tr><td colspan="6">${empty}</td></tr>`;
-  } else {
-    cards.innerHTML = vendors.map((item) => `
-      <article class="vcard">
-        <header>
-          <span class="vno">${esc(item.no)}</span>
-          <h3>${esc(item.name)}</h3>
-        </header>
-        <p class="source">来源 ${esc(item.source)}</p>
-        <dl>
-          <div><dt>队伍负责人</dt><dd>${teamLead(item)}</dd></div>
-          <div><dt>专业项目经理</dt><dd>${person(item.pm)}</dd></div>
-          <div><dt>劳务现场负责人</dt><dd>${person(item.labor)}</dd></div>
-        </dl>
-        <div class="tags">${planTag(item)}${matchTag(item)}</div>
-        ${noteHtml(item)}
-      </article>
-    `).join('');
-
-    tbody.innerHTML = vendors.map((item) => `
-      <tr>
-        <td>${esc(item.no)}</td>
-        <th scope="row">${esc(item.name)}<div class="source">${esc(item.source)}</div></th>
-        <td>${teamLead(item)}</td>
-        <td>${person(item.pm)}</td>
-        <td>${person(item.labor)}</td>
-        <td><div class="tags">${planTag(item)}${matchTag(item)}</div>${noteHtml(item)}</td>
-      </tr>
-    `).join('');
+  function classLabel(className) {
+    return {
+      application: '申请报告',
+      roster: '名录',
+      plan: '投入计划',
+      license: '安全资信报备证',
+      skip: '情况说明，不列入',
+      privacy: '证件或社保，已跳过',
+      scan: '扫描件，未读出文字',
+      unknown: '未识别类型'
+    }[className] || className;
   }
 
-  const altBox = document.getElementById('alt-box');
-  if (!alt.length) {
-    altBox.innerHTML = '<p class="empty">备选库没有记录。</p>';
-  } else {
-    altBox.innerHTML = alt.map((item) => `
-      <article class="alt-item">
-        <h3>${esc(item.name)}</h3>
-        <p><span class="tag warn">${esc(item.status)}</span></p>
-        <p>${esc(item.note)}</p>
-      </article>
-    `).join('');
+  function renderFiles() {
+    const list = document.getElementById('file-list');
+    const empty = document.getElementById('file-empty');
+    if (!imported.length) {
+      list.innerHTML = '';
+      empty.hidden = false;
+      return;
+    }
+    empty.hidden = true;
+    list.innerHTML = imported.map((file, index) =>
+      '<li><span class="file-name"><strong>' + esc(file.name) + '</strong> <span class="muted">(' + esc(file.sizeLabel) + ')</span>' +
+      '<span class="source">分类 ' + esc(classLabel(file.className)) + (file.note ? ' · ' + esc(file.note) : '') + '</span></span>' +
+      '<button type="button" class="btn secondary" data-i="' + index + '" aria-label="移除 ' + esc(file.name) + '">移除</button></li>'
+    ).join('');
+    list.querySelectorAll('button[data-i]').forEach((button) => {
+      button.addEventListener('click', () => {
+        imported.splice(Number(button.dataset.i), 1);
+        renderFiles();
+      });
+    });
   }
-
-  const drop = document.getElementById('drop');
-  const input = document.getElementById('file-input');
-  const list = document.getElementById('file-list');
-  const empty = document.getElementById('file-empty');
-  const files = [];
 
   function formatSize(size) {
     if (size < 1024) return size + ' B';
@@ -207,37 +241,85 @@
     return (size / (1024 * 1024)).toFixed(1) + ' MB';
   }
 
-  function renderFiles() {
-    if (!files.length) {
-      list.innerHTML = '';
-      empty.hidden = false;
-      list.setAttribute('aria-label', '文件名清单');
-      return;
-    }
-    empty.hidden = true;
-    list.setAttribute('aria-label', '已列 ' + files.length + ' 个文件名');
-    list.innerHTML = files.map((file, index) => `
-      <li>
-        <span class="file-name">${esc(file.name)} <span class="muted">(${esc(formatSize(file.size))})</span></span>
-        <button type="button" class="btn secondary" data-i="${index}" aria-label="移除 ${esc(file.name)}">移除</button>
-      </li>
-    `).join('');
-    list.querySelectorAll('button[data-i]').forEach((button) => {
-      button.addEventListener('click', () => {
-        files.splice(Number(button.dataset.i), 1);
-        renderFiles();
-      });
+  function loadScript(src) {
+    return new Promise((resolve, reject) => {
+      const existing = document.querySelector('script[src="' + src + '"]');
+      if (existing) {
+        resolve();
+        return;
+      }
+      const script = document.createElement('script');
+      script.src = src;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error('无法加载 ' + src));
+      document.head.appendChild(script);
     });
   }
 
-  function addFiles(fileList) {
-    Array.from(fileList || []).forEach((file) => {
-      files.push({ name: file.name, size: file.size });
+  async function readPdf(buffer) {
+    await loadScript('./vendor/pdfjs/pdf.js');
+    const pdfjs = window.pdfjsLib;
+    pdfjs.GlobalWorkerOptions.workerSrc = './vendor/pdfjs/pdf.worker.js';
+    const task = pdfjs.getDocument({
+      data: buffer,
+      cMapUrl: './vendor/pdfjs/cmaps/',
+      cMapPacked: true
     });
+    const pdf = await task.promise;
+    const pages = [];
+    for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
+      const page = await pdf.getPage(pageNumber);
+      const content = await page.getTextContent();
+      pages.push(content.items.map((item) => item.str).join(''));
+    }
+    return pages.join('\n');
+  }
+
+  async function readDocx(buffer) {
+    await loadScript('./vendor/jszip.min.js');
+    const zip = await window.JSZip.loadAsync(buffer);
+    const xml = await zip.file('word/document.xml').async('string');
+    return Array.from(xml.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)).map((match) => match[1]).join('');
+  }
+
+  async function readImportedFile(file) {
+    const name = file.name;
+    const lower = name.toLowerCase();
+    let text = '';
+    let note = '';
+    try {
+      if (lower.endsWith('.txt') || lower.endsWith('.md')) text = await file.text();
+      else if (lower.endsWith('.docx')) text = await readDocx(await file.arrayBuffer());
+      else if (lower.endsWith('.pdf')) text = await readPdf(await file.arrayBuffer());
+      else note = '只读取 PDF、Word 和 txt';
+    } catch (error) {
+      note = '未能读取正文';
+      text = '';
+    }
+    text = extract.redact(text);
+    let className = extract.classify(name, text);
+    if (lower.endsWith('.pdf') && text.trim().length < 40 && className !== 'privacy') {
+      className = 'scan';
+      note = '没有可用文字层';
+    } else if (!note && text.trim()) note = '已读取正文';
+    else if (!note) note = '没有读到正文';
+    return {
+      name: name,
+      sizeLabel: formatSize(file.size || text.length),
+      className: className,
+      note: note,
+      text: className === 'privacy' ? '' : text
+    };
+  }
+
+  async function addFiles(fileList) {
+    const files = Array.from(fileList || []);
+    for (const file of files) imported.push(await readImportedFile(file));
     renderFiles();
   }
 
-  renderFiles();
+  const drop = document.getElementById('drop');
+  const input = document.getElementById('file-input');
   drop.addEventListener('dragover', (event) => {
     event.preventDefault();
     drop.classList.add('drag');
@@ -257,12 +339,60 @@
     input.value = '';
   });
 
-  const hint = document.getElementById('parse-hint');
-  const note = document.getElementById('parse-note');
-  hint.addEventListener('click', () => {
-    const open = note.hidden;
-    note.hidden = !open;
-    hint.setAttribute('aria-expanded', open ? 'true' : 'false');
+  document.getElementById('load-fixture').addEventListener('click', async () => {
+    imported = [];
+    for (const name of FIXTURES) {
+      const response = await fetch('./fixtures/' + encodeURIComponent(name));
+      const text = extract.redact(await response.text());
+      imported.push({
+        name: name,
+        sizeLabel: formatSize(text.length),
+        className: extract.classify(name, text),
+        note: '文字示例，已读取正文',
+        text: text
+      });
+    }
+    renderFiles();
+  });
+
+  document.getElementById('apply-import').addEventListener('click', () => {
+    const usable = imported.filter((file) => file.text && file.className !== 'privacy' && file.className !== 'scan');
+    if (!usable.length) {
+      project.warnings = ['没有可读取的正文，名单未改。扫描件请手工补姓名。'];
+      render();
+      return;
+    }
+    project = extract.buildProject(usable.map((file) => ({ name: file.name, text: file.text, className: file.className })));
+    render();
+    if (location.hash !== '#review') location.hash = 'review';
+    else applyView(true);
+  });
+
+  document.getElementById('reset-sample').addEventListener('click', () => {
+    project = clone(window.FENBAO_SAMPLE);
+    render();
+  });
+
+  document.getElementById('generate-docx').addEventListener('click', async () => {
+    const button = document.getElementById('generate-docx');
+    button.disabled = true;
+    try {
+      await loadScript('./vendor/jszip.min.js');
+      const blob = await window.FENBAO_DOCX.build(project);
+      const link = document.createElement('a');
+      const core = project.projectCore || '会审意见';
+      link.href = URL.createObjectURL(blob);
+      link.download = core + '_会审意见.docx';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    } catch (error) {
+      project.warnings = ['生成 Word 失败：' + (error.message || '未知原因')];
+      render();
+    } finally {
+      button.disabled = false;
+    }
   });
 
   const banner = document.getElementById('install-banner');
@@ -281,11 +411,13 @@
   }
   document.getElementById('install-dismiss').addEventListener('click', () => {
     try { localStorage.setItem(dismissKey, '1'); }
-    catch (error) { /* 隐私模式无法保存时，本次仍先关掉提示。 */ }
+    catch (error) { /* 本次先关掉提示。 */ }
     banner.hidden = true;
   });
 
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').catch(() => {});
   }
+
+  render();
 })();

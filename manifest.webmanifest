@@ -1,7 +1,7 @@
 {
   "name": "分包比选工作台",
   "short_name": "分包比选",
-  "description": "双峰北地基基础专业分包会审名单工作台。公开静态页面，只展示会审名单；源 PDF 未上传。",
+  "description": "分包会审意见工作台。在本机读取申请报告、名录和投入计划，并按样板生成会审意见表。公开静态页面，源 PDF 未上传。",
   "start_url": "./index.html",
   "scope": "./",
   "display": "standalone",

@@ -514,6 +514,27 @@ main:focus { outline: none; }
 
 .file-list .btn { flex: none; min-width: 72px; }
 
+.field-block { margin-top: 12px; }
+
+.field-block p { margin: 0 0 4px; color: var(--slate); font-size: 0.875rem; }
+
+.field input,
+.vcard input,
+td input {
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 10px;
+  border: 1px solid var(--line-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.file-name { display: block; }
+
+.file-name .source { display: block; }
+
 .callout {
   margin-top: 12px;
   padding: 14px 16px;

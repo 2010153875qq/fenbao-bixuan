@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <meta name="theme-color" content="#0e2748" />
-  <meta name="description" content="分包比选工作台。双峰北地基基础专业分包会审名单。公开静态页面，源 PDF 未上传。" />
+  <meta name="description" content="分包比选工作台。在本机读取申请报告、名录和投入计划，按会审意见表样板生成 Word。源 PDF 不上传。" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="分包比选工作台" />
@@ -69,7 +69,7 @@
 
         <main id="main" tabindex="-1">
           <section class="view" id="view-home">
-            <p class="lede">按视图核对会审名单。本页只列出分包商和负责人姓名，证件材料不在这里展示。</p>
+            <p class="lede">把申请报告、外包商名录和各家投入计划读成会审名单，再按样板生成会审意见表。页面只保留会审姓名。</p>
             <div class="stats" id="stats" aria-label="本批次概览"></div>
             <div class="next-row" aria-label="进入其他视图">
               <a class="btn" href="#import">资料导入</a>
@@ -90,43 +90,44 @@
                 <section class="panel">
                   <h2>使用说明</h2>
                   <ul class="plain" id="usage-notes">
-                    <li>只列会审名单，不含身份证号、社保证明明细或手机号。</li>
-                    <li>这是公开静态页面。申请报告、商名录和投入计划等源 PDF 未上传到本站。</li>
-                    <li>资料导入只在这台设备上列出所选文件名，不上传，也不识别正文。</li>
-                    <li>表格导出下载站点里已有的 Word、PDF 和核对备忘，页面不会重新生成这些文件。</li>
+                    <li>只列会审名单，不含身份证号、社保证明或手机号。源 PDF 不放进仓库，也不上传。</li>
+                    <li>文本型 PDF、Word 和 txt 在本机抽出文字。扫描件读不出文字时字段留空，不编造姓名。</li>
+                    <li>选用库决定分包商行。只交了情况说明、不在选用库的单位不进入会审表。</li>
+                    <li>是否同意保持未勾选。Word 按样板生成，版式不另做一套。</li>
                   </ul>
+                  <div class="actions">
+                    <button type="button" class="btn secondary" id="reset-sample">恢复双峰北示例</button>
+                  </div>
                 </section>
               </div>
             </div>
           </section>
 
           <section class="view" id="view-import" hidden>
-            <p class="lede">选择申请报告、商名录或各家资源投入计划，用来核对文件名是否带齐。清单只留在这台设备的浏览器里。</p>
+            <p class="lede">放入申请报告或申请表、外包商名录，以及各家资源投入计划或队伍投入计划。文字在这台设备上读取，不会上传。</p>
             <section class="panel">
               <h2>选择文件</h2>
               <div class="drop" id="drop">
-                <p class="drop-title" id="drop-title">把 PDF 或 Word 拖到此处</p>
-                <p class="muted" id="drop-hint">只把文件名列入本机清单，不上传、不识别正文。</p>
+                <p class="drop-title" id="drop-title">把 PDF、Word 或 txt 拖到此处</p>
+                <p class="muted" id="drop-hint">文本型文件会抽出文字并分类。扫描件留空，不编造姓名。</p>
                 <label class="btn" for="file-input">选择文件</label>
               </div>
-              <input id="file-input" class="sr-only" type="file" accept=".pdf,.doc,.docx,application/pdf" multiple aria-describedby="drop-hint" />
+              <input id="file-input" class="sr-only" type="file" accept=".pdf,.doc,.docx,.txt,application/pdf" multiple aria-describedby="drop-hint" />
             </section>
             <section class="panel">
-              <h2>本机文件名</h2>
-              <p class="honesty" id="file-honesty">清单内容：仅文件名和大小。未读取正文，未上传。</p>
-              <p class="empty" id="file-empty">还没有选择文件。选中后这里只列出文件名和大小。</p>
-              <ul class="file-list" id="file-list" aria-live="polite" aria-relevant="additions removals" aria-label="文件名清单"></ul>
+              <h2>已读资料</h2>
+              <p class="honesty" id="file-honesty">分类结果只用于填写会审表。证件、社保证明和手机号即使出现在文件里也会被跳过。</p>
+              <p class="empty" id="file-empty">还没有资料。可以载入双峰北文字示例，或选择文本型 PDF。</p>
+              <ul class="file-list" id="file-list" aria-live="polite" aria-relevant="additions removals" aria-label="已读资料"></ul>
               <div class="actions">
-                <button type="button" class="btn secondary" id="parse-hint" aria-expanded="false" aria-controls="parse-note">如何自动生成下一份会审表？</button>
-              </div>
-              <div class="callout" id="parse-note" hidden>
-                <p>本工作台不能自动生成下一份会审表，也不会识别 PDF 或 Word 正文。扫描件请直接发给小政，由人工按会审表填写队伍负责人和专业项目经理。此页只保留这台设备上选择的文件名，文件不会上传。</p>
+                <button type="button" class="btn secondary" id="load-fixture">载入文字示例</button>
+                <button type="button" class="btn" id="apply-import">用这些资料填写名单</button>
               </div>
             </section>
           </section>
 
           <section class="view" id="view-review" hidden>
-            <p class="lede">「是否同意」留空，由会审小组在会审表上填写。劳务现场负责人未单独署名的一律留空。</p>
+            <p class="lede">核对抽出的姓名。空白表示没有读到，可以手工改正。是否同意保持未勾选。劳务现场负责人只在资料单独写明该岗位时才填写。</p>
             <section class="panel">
               <div class="panel-head">
                 <h2>选用库</h2>
@@ -159,15 +160,22 @@
               </div>
             </section>
             <section class="panel">
-              <h2>备选库</h2>
-              <div id="alt-box"></div>
+              <h2>不列入会审表</h2>
+              <div id="ignored-box"></div>
             </section>
           </section>
 
           <section class="view" id="view-export" hidden>
-            <p class="lede">下载已准备好的会审意见和核对备忘。链接保持原文件名。本页只提供下载，不会在浏览器中生成或改写 Word / PDF。</p>
+            <p class="lede">按当前名单克隆会审意见表样板，生成 Word。是否同意保持空白。不为了另出一份 PDF 而改动版式。</p>
             <section class="panel">
-              <h2>会审文件</h2>
+              <h2>生成</h2>
+              <p class="honesty">生成在本机完成，使用站点里的样板文件，不上传名单。</p>
+              <div class="actions">
+                <button type="button" class="btn" id="generate-docx">生成会审意见 Word</button>
+              </div>
+            </section>
+            <section class="panel">
+              <h2>双峰北示例原件</h2>
               <ul class="downloads">
                 <li>
                   <div>
@@ -178,20 +186,13 @@
                 </li>
                 <li>
                   <div>
-                    <h3>会审意见 PDF</h3>
-                    <p class="file-id">双峰北220kV_地基基础_会审意见_已填.pdf</p>
-                  </div>
-                  <a class="btn secondary" href="./downloads/双峰北220kV_地基基础_会审意见_已填.pdf" download>下载 PDF</a>
-                </li>
-                <li>
-                  <div>
-                    <h3>核对备忘</h3>
+                    <h3>早期核对备忘</h3>
                     <p class="file-id">核对.md</p>
                   </div>
                   <a class="btn secondary" href="./downloads/核对.md" download>下载核对备忘</a>
                 </li>
               </ul>
-              <p class="note">PDF 和核对备忘会随页面缓存；Word 未放入缓存，下载时需要联网。申请报告和各家资源投入计划等源 PDF 未上传到本站。</p>
+              <p class="note">示例 Word 与会审意见表样板一致。源申请报告和投入计划 PDF 未上传到本站。</p>
             </section>
           </section>
         </main>
@@ -220,7 +221,10 @@
   <noscript>
     <p class="noscript">请启用 JavaScript 后查看会审名单。已发布的 Word、PDF 和核对备忘仍可从表格导出中的链接下载。</p>
   </noscript>
+  <script src="./vendor/jszip.min.js"></script>
   <script src="./js/data.js"></script>
+  <script src="./js/extract.js"></script>
+  <script src="./js/docx.js"></script>
   <script src="./js/app.js"></script>
 </body>
 </html>
