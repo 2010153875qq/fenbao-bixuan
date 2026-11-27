@@ -59,11 +59,12 @@ test('published files, manifest, and service worker stay accurate', async ({ req
   expect(manifest.description).toMatch(/源 PDF 未上传/);
 
   const sw = fs.readFileSync(path.join(ROOT, 'sw.js'), 'utf8');
-  expect(sw).toContain("const CACHE = 'fenbao-bixuan-v5'");
+  expect(sw).toContain("const CACHE = 'fenbao-bixuan-v6'");
   expect(sw).toContain('./downloads/核对.md');
   expect(sw).toContain('./templates/会审意见表_模板.docx');
   expect(sw).toContain('chi_sim.traineddata.gz');
-  expect(sw).not.toContain('fenbao-bixuan-v4');
+  expect(sw).toContain('heic2any.min.js');
+  expect(sw).not.toContain('fenbao-bixuan-v5');
 
   for (const item of DOWNLOADS) {
     const rel = item.href.replace(/^\.\//, '');

@@ -103,6 +103,30 @@ test('table-style plan keeps the first two names and ignores later columns', () 
   assert.deepEqual(summary.ignored, ['星火丙有限公司']);
 });
 
+test('two photos of one vendor fill the blank field without inventing labor', () => {
+  const project = api.buildProject([
+    {
+      name: '名录.txt',
+      className: 'roster',
+      text: '选用库\n星火甲有限公司'
+    },
+    {
+      name: '照片1.jpg',
+      className: 'plan',
+      text: '星火甲有限公司\n队伍负责人：罗曙光'
+    },
+    {
+      name: '照片2.jpg',
+      className: 'plan',
+      text: '星火甲有限公司\n项目负责人：罗雄'
+    }
+  ]);
+  const vendor = JSON.parse(JSON.stringify(project.vendors[0]));
+  assert.equal(vendor.teamLead, '罗曙光');
+  assert.equal(vendor.pm, '罗雄');
+  assert.equal(vendor.labor, '');
+});
+
 test('a roster-only station does not invent names', () => {
   const project = api.buildProject([
     {

@@ -92,8 +92,14 @@
   }
 
   function personAfter(text, label) {
-    const match = String(text || '').match(new RegExp(label + '\\s*[:：]\\s*([\\u4e00-\\u9fa5]{2,4})'));
-    return match ? match[1] : '';
+    const match = String(text || '').match(new RegExp(label + '\\s*[:：]\\s*([\\u4e00-\\u9fa5]{2,6})'));
+    if (!match) return '';
+    let name = match[1];
+    const cut = name.search(/项目|负责|经理|劳务|专业|公司/);
+    if (cut >= 0) name = name.slice(0, cut);
+    if (name.length > 3) name = name.slice(0, 3);
+    if (name.length < 2 || /项目|负责|经理/.test(name)) return '';
+    return name;
   }
 
   function laborName(text) {
@@ -285,6 +291,22 @@
     const plans = [];
     const licenses = [];
     docs.filter((doc) => doc.className === 'plan').forEach((doc) => plans.push.apply(plans, parsePlan(doc.text)));
+    const mergedPlans = [];
+    plans.forEach((plan) => {
+      const existing = mergedPlans.find((item) => sameCompany(item.name, plan.name));
+      if (!existing) {
+        mergedPlans.push({
+          name: plan.name,
+          teamLead: plan.teamLead || '',
+          pm: plan.pm || '',
+          labor: plan.labor || ''
+        });
+        return;
+      }
+      if (!existing.teamLead && plan.teamLead) existing.teamLead = plan.teamLead;
+      if (!existing.pm && plan.pm) existing.pm = plan.pm;
+      if (!existing.labor && plan.labor) existing.labor = plan.labor;
+    });
     docs.filter((doc) => doc.className === 'license').forEach((doc) => licenses.push.apply(licenses, parseLicense(doc.text)));
 
     const ignored = [];
@@ -308,7 +330,7 @@
     });
 
     const vendors = rosterData.chosen.map((name) => {
-      const plan = plans.find((item) => sameCompany(item.name, name));
+      const plan = mergedPlans.find((item) => sameCompany(item.name, name));
       const license = licenses.find((item) => sameCompany(item.name, name));
       let teamLead = '';
       let teamLeadSource = '';

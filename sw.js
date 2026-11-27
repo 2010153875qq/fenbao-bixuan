@@ -1,4 +1,4 @@
-const CACHE = 'fenbao-bixuan-v5';
+const CACHE = 'fenbao-bixuan-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,7 @@ const ASSETS = [
   './js/extract.js',
   './js/docx.js',
   './js/ocr.js',
+  './js/photo.js',
   './manifest.webmanifest',
   './icons/icon-192.png',
   './icons/icon-512.png',
@@ -16,6 +17,7 @@ const ASSETS = [
   './downloads/双峰北220kV_地基基础_会审意见_已填.docx',
   './templates/会审意见表_模板.docx',
   './vendor/jszip.min.js',
+  './vendor/heic2any.min.js',
   './vendor/pdfjs/pdf.js',
   './vendor/pdfjs/pdf.worker.js',
   './vendor/tesseract/tesseract.min.js',

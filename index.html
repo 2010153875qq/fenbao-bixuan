@@ -104,21 +104,27 @@
           </section>
 
           <section class="view" id="view-import" hidden>
-            <p class="lede">放入申请报告或申请表、外包商名录，以及各家资源投入计划或队伍投入计划。文字在这台设备上读取，不会上传。</p>
+            <p class="lede">放入申请报告或申请表、外包商名录，以及各家资源投入计划或队伍投入计划。也可以拍照或从相册选择投入计划照片。文字和照片都在这台设备上读取，不会上传。</p>
             <section class="panel">
               <h2>选择文件</h2>
               <div class="drop" id="drop">
-                <p class="drop-title" id="drop-title">把 PDF、Word 或 txt 拖到此处</p>
-                <p class="muted" id="drop-hint">文本型文件会抽出文字并分类。扫描件留空，不编造姓名。</p>
-                <label class="btn" for="file-input">选择文件</label>
+                <p class="drop-title" id="drop-title">把 PDF、Word、txt 或照片拖到此处</p>
+                <p class="muted" id="drop-hint">照片会在本机识别队伍负责人和专业项目经理。一家可以放多张。读不到的姓名留空。</p>
+                <div class="drop-actions">
+                  <label class="btn" for="file-input">选择文件</label>
+                  <label class="btn" for="camera-input">拍照</label>
+                  <label class="btn secondary" for="photo-input">从相册选择</label>
+                </div>
               </div>
-              <input id="file-input" class="sr-only" type="file" accept=".pdf,.doc,.docx,.txt,application/pdf" multiple aria-describedby="drop-hint" />
+              <input id="file-input" class="sr-only" type="file" accept=".pdf,.doc,.docx,.txt,application/pdf,image/*,.heic,.heif" multiple aria-describedby="drop-hint" />
+              <input id="camera-input" class="sr-only" type="file" accept="image/*" capture="environment" aria-label="拍摄投入计划照片" />
+              <input id="photo-input" class="sr-only" type="file" accept="image/jpeg,image/png,image/webp,image/gif,image/bmp,image/heic,image/heif,.jpg,.jpeg,.png,.webp,.gif,.bmp,.heic,.heif,.tif,.tiff" multiple aria-label="从相册选择投入计划照片" />
             </section>
             <section class="panel">
               <h2>已读资料</h2>
               <p class="honesty" id="file-honesty">分类结果只用于填写会审表。扫描页在本机识别，不会上传。证件、社保证明和手机号即使出现在文件里也会被跳过。</p>
               <p class="source" id="ocr-status" role="status"></p>
-              <p class="empty" id="file-empty">还没有资料。可以载入双峰北文字示例，或选择文本型 PDF。</p>
+              <p class="empty" id="file-empty">还没有资料。可以载入双峰北文字示例，选择 PDF，或拍投入计划的照片。</p>
               <ul class="file-list" id="file-list" aria-live="polite" aria-relevant="additions removals" aria-label="已读资料"></ul>
               <div class="actions">
                 <button type="button" class="btn secondary" id="load-fixture">载入文字示例</button>

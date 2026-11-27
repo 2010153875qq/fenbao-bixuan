@@ -455,6 +455,15 @@ main:focus { outline: none; }
 
 .drop .muted { margin: 6px 0 16px; }
 
+.drop-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.drop-actions .btn { min-width: 44px; }
+
 .drop:focus-within {
   outline: 2px solid var(--focus);
   outline-offset: 2px;
