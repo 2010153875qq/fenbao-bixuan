@@ -382,8 +382,105 @@
     return Array.from({ length: count }, (_, index) => index + 1);
   }
 
+  function compactOcr(text) {
+    return extract.normalize(text).replace(/([\u4e00-\u9fa5])\s+(?=[\u4e00-\u9fa5])/g, '$1');
+  }
+
+  async function recognizeCanvasSet(file, canvases, label) {
+    const status = document.getElementById('ocr-status');
+    let bestText = '';
+    let bestScore = -1;
+    for (let index = 0; index < canvases.length; index += 1) {
+      const canvas = canvases[index];
+      file.ocr.label = label;
+      if (status) status.textContent = file.name + '：' + file.ocr.label;
+      const text = await window.FENBAO_OCR.recognizeCanvas(canvas, (message) => {
+        if (!message || message.status !== 'recognizing text') return;
+        const pct = Math.round((message.progress || 0) * 100);
+        file.ocr.label = label + ' ' + pct + '%';
+        if (status) status.textContent = file.name + '：' + file.ocr.label;
+      });
+      const normalized = compactOcr(text);
+      const score = ocrScore(normalized);
+      if (score > bestScore) {
+        bestScore = score;
+        bestText = normalized;
+      }
+      if (score >= 3 && /队伍负责人|项目负责人|负.{0,2}人/.test(normalized)) break;
+    }
+    canvases.forEach((canvas) => {
+      canvas.width = 0;
+      canvas.height = 0;
+    });
+    return bestText;
+  }
+
+  function rotatedCopy(source, degrees) {
+    if (!degrees) return source;
+    const canvas = document.createElement('canvas');
+    const swap = degrees % 180 !== 0;
+    canvas.width = swap ? source.height : source.width;
+    canvas.height = swap ? source.width : source.height;
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(degrees * Math.PI / 180);
+    ctx.drawImage(source, -source.width / 2, -source.height / 2);
+    return canvas;
+  }
+
+  function finishOcrText(file, bestText) {
+    const status = document.getElementById('ocr-status');
+    if (discardSensitivePage(bestText)) {
+      file.text = '';
+      file.className = 'privacy';
+      file.note = '社保证明或证件页已跳过';
+      file.ocr = { status: 'done', label: '已跳过' };
+      if (status) status.textContent = file.name + '：社保证明或证件页已跳过';
+      return;
+    }
+    file.text = extract.redact(extract.normalize(bestText));
+    let className = extract.classify(file.name, file.text);
+    if (file.imageBlob && className === 'unknown' && /负.{0,2}人|项目负责人|投入计划|队伍负责人/.test(file.text)) className = 'plan';
+    file.className = className;
+    file.note = file.imageBlob ? '照片文字已抽出' : '扫描文字已抽出';
+    file.ocr = { status: 'done', label: file.note };
+    if (status) status.textContent = file.name + '：' + file.note;
+  }
+
+  async function recognizeImage(file) {
+    file.ocr = { status: 'running', label: '正在准备照片' };
+    renderFiles();
+    const status = document.getElementById('ocr-status');
+    try {
+      await loadScript('./js/ocr.js');
+      await loadScript('./js/photo.js');
+      if (status) status.textContent = file.name + '：正在准备照片';
+      const prepared = await window.FENBAO_PHOTO.toCanvas(file.imageBlob);
+      const turns = [prepared, rotatedCopy(prepared, 90), rotatedCopy(prepared, 270)];
+      const bestText = await recognizeCanvasSet(file, turns, '正在识别照片');
+      finishOcrText(file, bestText);
+    } catch (error) {
+      if (error && error.message === 'cancelled') {
+        file.ocr = { status: 'cancelled', label: '已取消' };
+        if (status) status.textContent = '已取消识别';
+      } else {
+        file.ocr = { status: 'error', label: '识别失败' };
+        file.note = (error && error.message) || '识别失败，姓名留空';
+        if (status) status.textContent = file.note;
+      }
+    }
+    renderFiles();
+  }
+
   async function recognizeFile(file) {
-    if (!file || !file.buffer) return;
+    if (!file) return;
+    if (file.imageBlob) {
+      await recognizeImage(file);
+      return;
+    }
+    if (!file.buffer) return;
     const pages = (file.ocr && file.ocr.pages) || defaultOcrPages(file.numPages || 1);
     file.ocr = { status: 'running', pages: pages, label: '正在准备中文识别' };
     renderFiles();
@@ -391,7 +488,6 @@
     try {
       await loadScript('./js/ocr.js');
       let combined = '';
-      let chosen = '';
       for (let index = 0; index < pages.length; index += 1) {
         const pageNumber = pages[index];
         file.ocr.label = '正在识别第 ' + pageNumber + ' 页（' + (index + 1) + '/' + pages.length + '）';
@@ -403,15 +499,7 @@
           file.ocr.label = '正在识别第 ' + pageNumber + ' 页';
           if (status) status.textContent = file.name + '：' + file.ocr.label;
           const canvas = await renderPdfPage(file.buffer, pageNumber, rotation);
-          const text = await window.FENBAO_OCR.recognizeCanvas(canvas, (message) => {
-            if (!message || message.status !== 'recognizing text') return;
-            const pct = Math.round((message.progress || 0) * 100);
-            file.ocr.label = '正在识别第 ' + pageNumber + ' 页 ' + pct + '%';
-            if (status) status.textContent = file.name + '：' + file.ocr.label;
-          });
-          canvas.width = 0;
-          canvas.height = 0;
-          const normalized = extract.normalize(text).replace(/([\u4e00-\u9fa5])\s+(?=[\u4e00-\u9fa5])/g, '$1');
+          const normalized = await recognizeCanvasSet(file, [canvas], '正在识别第 ' + pageNumber + ' 页');
           const score = ocrScore(normalized);
           if (score > bestScore) {
             bestScore = score;
@@ -420,13 +508,8 @@
           if (score >= 3 && /队伍负责人|项目负责人/.test(normalized)) break;
         }
         if (!discardSensitivePage(bestText)) combined += '\n' + bestText;
-        chosen = bestText;
       }
-      file.text = extract.redact(extract.normalize((file.text || '') + '\n' + combined));
-      file.className = extract.classify(file.name, file.text);
-      file.note = '扫描文字已抽出';
-      file.ocr = { status: 'done', label: '扫描文字已抽出' };
-      if (status) status.textContent = file.name + '：扫描文字已抽出';
+      finishOcrText(file, (file.text || '') + '\n' + combined);
     } catch (error) {
       if (error && error.message === 'cancelled') {
         file.ocr = { status: 'cancelled', label: '已取消' };
@@ -455,21 +538,29 @@
     let note = '';
     let numPages = 0;
     let buffer = null;
+    let imageBlob = null;
+    const imageName = /\.(jpe?g|png|webp|gif|bmp|heic|heif|tiff?)$/i.test(lower) || String(file.type || '').indexOf('image/') === 0;
     try {
-      if (lower.endsWith('.txt') || lower.endsWith('.md')) text = await file.text();
+      if (imageName && /身份证|社保证明|社保缴费|缴费明细/.test(name)) {
+        note = '证件或社保，已跳过';
+      } else if (lower.endsWith('.txt') || lower.endsWith('.md')) text = await file.text();
       else if (lower.endsWith('.docx')) text = await readDocx(await file.arrayBuffer());
       else if (lower.endsWith('.pdf')) {
         const result = await readPdf(await file.arrayBuffer());
         text = result.text;
         numPages = result.numPages;
         buffer = result.buffer;
-      } else note = '只读取 PDF、Word 和 txt';
+      } else if (imageName) {
+        imageBlob = file;
+        note = '照片将在本机识别';
+      } else note = '只读取 PDF、Word、txt 和照片';
     } catch (error) {
       note = '未能读取正文';
       text = '';
     }
     text = extract.redact(extract.normalize ? extract.normalize(text) : text);
-    let className = extract.classify(name, text);
+    let className = imageBlob ? 'scan' : extract.classify(name, text);
+    if (!imageBlob && /身份证|社保证明|社保缴费|缴费明细/.test(name)) className = 'privacy';
     if (lower.endsWith('.pdf') && text.trim().length < 40 && className !== 'privacy') {
       className = 'scan';
       note = '没有可用文字层，将只识别前 ' + Math.min(3, numPages > 4 ? 1 : Math.min(2, numPages || 1)) + ' 页';
@@ -482,7 +573,8 @@
       note: note,
       text: className === 'privacy' ? '' : text,
       numPages: numPages,
-      buffer: className === 'privacy' ? null : buffer
+      buffer: className === 'privacy' ? null : buffer,
+      imageBlob: className === 'privacy' ? null : imageBlob
     };
   }
 
@@ -492,12 +584,14 @@
       const record = await readImportedFile(file);
       imported.push(record);
       renderFiles();
-      if (record.className === 'scan' && record.buffer) await recognizeFile(record);
+      if (record.imageBlob || (record.className === 'scan' && record.buffer)) await recognizeFile(record);
     }
   }
 
   const drop = document.getElementById('drop');
   const input = document.getElementById('file-input');
+  const cameraInput = document.getElementById('camera-input');
+  const photoInput = document.getElementById('photo-input');
   drop.addEventListener('dragover', (event) => {
     event.preventDefault();
     drop.classList.add('drag');
@@ -512,11 +606,16 @@
     if (event.target.closest('label')) return;
     input.click();
   });
-  input.addEventListener('change', () => {
-    const pending = addFiles(input.files);
-    input.value = '';
-    return pending;
-  });
+  function bindPicker(picker) {
+    picker.addEventListener('change', () => {
+      const pending = addFiles(picker.files);
+      picker.value = '';
+      return pending;
+    });
+  }
+  bindPicker(input);
+  bindPicker(cameraInput);
+  bindPicker(photoInput);
 
   document.getElementById('load-fixture').addEventListener('click', async () => {
     imported = [];
